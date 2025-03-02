@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import json
 import anthropic
@@ -10,10 +10,12 @@ from pydantic import BaseModel
 class AnthropicBedrockAgent(Agent):
     def __init__(
         self,
+        agent_name: str,
         model_id: str,
         aws_region: str = "us-east-1",
         verbose: bool = False,
         tools: List[Tool] = None,
+        team: List[Agent] = None,
         system_prompt: str = None,
         instructions: str = None,
         output_format: str | BaseModel = None,
@@ -37,9 +39,11 @@ class AnthropicBedrockAgent(Agent):
             temperature: Temperature
         """
         super().__init__(
+            agent_name=agent_name,
             system_prompt=system_prompt,
             instructions=instructions,
             output_format=output_format,
+            team=team,
             verbose=verbose,
             tools=tools,
         )
@@ -136,9 +140,15 @@ class AnthropicBedrockAgent(Agent):
 
             if self.verbose:
                 print(f"\n--- Iteration {iterations} ---")
-                print(
-                    f"Sending messages to Claude: {json.dumps(messages[-1], indent=2)}"
-                )
+                try:
+                    if isinstance(messages[-1]["content"], list):
+                        print("Sending tool result message to Claude")
+                    else:
+                        print(f"Sending message to Claude: {json.dumps(messages[-1], indent=2)}")
+                except Exception as e:
+                    print(f"Error displaying message: {e}")
+                    print(f"Message type: {type(messages[-1])}")
+                    print("Continuing with request...")
 
             response = self.client.beta.messages.create(
                 model=self.model,
@@ -194,11 +204,24 @@ class AnthropicBedrockAgent(Agent):
                             {"role": "assistant", "content": response.content}
                         )
 
-                        tool_result_content = (
-                            json.dumps(tool_result)
-                            if isinstance(tool_result, dict)
-                            else tool_result
-                        )
+                        if isinstance(tool_result, dict):
+                            tool_result_content = json.dumps(tool_result)
+                        elif isinstance(tool_result, (str, int, float, bool)):
+                            tool_result_content = str(tool_result)
+                        else:
+                            try:
+                                if hasattr(tool_result, "model_dump"):
+                                    tool_result_content = json.dumps(tool_result.model_dump())
+                                elif hasattr(tool_result, "__dict__"):
+                                    tool_result_content = json.dumps(vars(tool_result))
+                                else:
+                                    tool_result_content = str(tool_result)
+                            except Exception as e:
+                                tool_result_content = f"Error serializing result: {str(e)}"
+
+                        if self.verbose:
+                            print(f"Tool result type: {type(tool_result)}")
+                            print(f"Serialized content type: {type(tool_result_content)}")
 
                         messages.append(
                             {
