@@ -225,8 +225,6 @@ class AnthropicBedrockAgent(Agent):
 
                 if self.output_format:
                     final_response = self.output_parser_model(response)
-                else:
-                    final_response = self.output_parser_text(response)
 
                 if self.verbose:
                     print("\n--- Final Response ---")
@@ -288,5 +286,5 @@ class AnthropicBedrockAgent(Agent):
         """
 
         response = self.__standalone_call(prompt)
-        
+
         return response

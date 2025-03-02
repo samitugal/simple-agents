@@ -1,7 +1,7 @@
 from typing import Any, Dict, Literal
 
 from src.core.tool import Tool
-
+from src.tools.weather.weather_api import WeatherAPI
 
 class WeatherTool(Tool):
     """Tool for getting weather information"""
@@ -35,9 +35,5 @@ class WeatherTool(Tool):
     def execute(self, location: str, unit: str = "celsius") -> Dict[str, Any]:
         """Get weather for the specified location"""
         # In a real implementation, this would call a weather API
-        return {
-            "weather": "sunny",
-            "temperature": 22 if unit == "celsius" else 72,
-            "location": location,
-            "unit": unit,
-        }
+        weather_api = WeatherAPI()
+        return weather_api.execute(location, unit)
