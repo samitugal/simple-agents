@@ -93,11 +93,18 @@ class AnthropicBedrockAgent(Agent):
             messages.append({"role": "user", "content": f"<instructions>{self.instructions}</instructions>"})
 
         if self.output_format:
-            if isinstance(self.output_format, BaseModel):
+            if isinstance(self.output_format, BaseModel) or \
+                (isinstance(self.output_format, type) and issubclass(self.output_format, BaseModel)):
+                if isinstance(self.output_format, type):
+                    schema_json = self.output_format.model_json_schema()
+                    schema_str = json.dumps(schema_json)
+                else:
+                    schema_str = self.output_format.model_dump_json()
+                
                 messages.append(
                     {
                         "role": "user",
-                        "content": f"<output_format>{self.output_format.model_dump_json()}</output_format>",
+                        "content": f"<output_format>{schema_str}</output_format>",
                     }
                 )
             else:
@@ -216,6 +223,11 @@ class AnthropicBedrockAgent(Agent):
                 # Final response from model
                 final_response = response
 
+                if self.output_format:
+                    final_response = self.output_parser_model(response)
+                else:
+                    final_response = self.output_parser_text(response)
+
                 if self.verbose:
                     print("\n--- Final Response ---")
                     for content_block in response.content:
@@ -231,3 +243,50 @@ class AnthropicBedrockAgent(Agent):
                 print("Using last response as final")
 
         return final_response
+    
+    def __standalone_call(self, prompt: str) -> Dict[str, Any]:
+        """
+        Invoke the agent with a prompt, handling the full conversation cycle
+
+        Args:
+            prompt: The prompt to invoke the agent with
+        """
+
+        response = self.client.beta.messages.create(
+            model=self.model,
+            max_tokens=self.max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=self.temperature,
+        )
+        return response
+    
+    def output_parser_model(self, response: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Parse the output of the agent
+        """
+        output_schema = None
+        if self.output_format:
+            if isinstance(self.output_format, BaseModel) or (isinstance(self.output_format, type) and issubclass(self.output_format, BaseModel)):
+                if isinstance(self.output_format, type):
+                    # Get schema directly from the class without instantiating
+                    schema_json = self.output_format.model_json_schema()
+                    output_schema = json.dumps(schema_json)
+                else:
+                    # It's already an instance
+                    output_schema = self.output_format.model_dump_json()
+            else:
+                output_schema = self.output_format
+        else:
+            return response
+        
+        prompt = f"""
+        Fit the following response into the following output schema:
+        {response}
+
+        User Request Output Schema:
+        {output_schema} 
+        """
+
+        response = self.__standalone_call(prompt)
+        
+        return response

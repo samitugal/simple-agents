@@ -13,9 +13,9 @@ class Agent:
 
     def __init__(
         self,
-        system_prompt: str,
-        instructions: str,
-        output_format: str | BaseModel,
+        system_prompt: Optional[str] = None,
+        instructions: Optional[str] = None,
+        output_format: Optional[str | BaseModel] = None,
         verbose: bool = False,
         tools: List[Tool] = None,
     ):
@@ -37,3 +37,20 @@ class Agent:
             for tool in tools:
                 self.registry.register(tool)
 
+    def invoke(self, prompt: str) -> Dict[str, Any]:
+        """
+        Invoke the agent with a prompt, handling the full conversation cycle
+
+        Args:
+            prompt: The prompt to invoke the agent with
+        """
+        pass
+
+    def standalone_call(self, prompt: str) -> Dict[str, Any]:
+        """
+        Invoke the agent with a prompt, handling the full conversation cycle
+
+        Args:
+            prompt: The prompt to invoke the agent with
+        """
+        pass
