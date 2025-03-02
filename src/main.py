@@ -29,12 +29,11 @@ def main():
         tools=tools,
         system_prompt="You are a helpful assistant that can use tools to get information.",
         instructions="You can use the following tools to get information: {tools}",
-        output_format=OutputFormat,
     )
     prompt = (
         sys.argv[1]
         if len(sys.argv) > 1
-        else "What's the weather like in San Francisco? Also show me the files in the current directory."
+        else "What's the weather like in Izmir?"
     )
 
     response = agent.invoke(prompt)
