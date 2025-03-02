@@ -35,8 +35,10 @@ class TavilySearchTool(Tool):
             format: Response format ("json" or "markdown")
             max_results: Maximum number of results to return in detailed mode
         """
-        super().__init__(name="tavily_tools")
-
+        # Initialize basic properties
+        self._name = "tavily_search"
+        self._search_mode = search_mode
+        
         # Initialize API client
         self.api_key = api_key or os.getenv("TAVILY_API_KEY")
         if not self.api_key:
@@ -49,14 +51,59 @@ class TavilySearchTool(Tool):
         self.include_answer = include_answer
         self.format = format
         self.max_results = max_results
-        
-        # Register the appropriate search function based on mode
-        if search_mode == "detailed":
-            self.register(self.search_detailed)
-        elif search_mode == "context":
-            self.register(self.search_context)
+
+    @property
+    def name(self) -> str:
+        """Get the name of the tool"""
+        return self._name
+
+    @property
+    def description(self) -> str:
+        """Get the description of the tool"""
+        if self._search_mode == "detailed":
+            return "Search the web for information and return structured results"
         else:
-            raise ValueError(f"Invalid search_mode: {search_mode}")
+            return "Search the web for information and return raw context"
+    
+    @property
+    def input_schema(self) -> Dict[str, Any]:
+        """Get the input schema for the tool"""
+        if self._search_mode == "detailed":
+            return {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query to look up on the web",
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Maximum number of results to return (optional)",
+                    }
+                },
+                "required": ["query"],
+            }
+        else:
+            return {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query to look up on the web",
+                    }
+                },
+                "required": ["query"],
+            }
+    
+    def execute(self, **kwargs) -> Any:
+        """Execute the search based on the mode"""
+        if self._search_mode == "detailed":
+            return self.search_detailed(
+                query=kwargs["query"], 
+                max_results=kwargs.get("max_results")
+            )
+        else:
+            return self.search_context(query=kwargs["query"])
 
     def search_detailed(self, query: str, max_results: Optional[int] = None) -> str:
         """
